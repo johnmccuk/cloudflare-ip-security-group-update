@@ -1,6 +1,6 @@
-import requests
 import os
 import boto3
+from botocore.vendored import requests
 
 def get_cloudflare_ip_list():
     'Call the CloudFlare API and return a list of IPs'
