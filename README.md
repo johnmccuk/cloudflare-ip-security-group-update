@@ -3,6 +3,8 @@ Lambda function to retrieve Cloudflare's IP address list and update the specifie
 
 John McCracken
 johnmccuk@gmail.com
+https://github.com/johnmccuk/cloudflare-ip-security-group-update
+26/02/17
 
 ###Instructions
 Python 2.7 code which should be placed in an AWS Lambda function and performs the following:
