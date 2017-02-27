@@ -1,8 +1,7 @@
 # cloudflare-ip-security-group-update
 Lambda function to retrieve Cloudflare's IP address list and update the specified security group
 
-John McCracken
-johnmccuk@gmail.com
+John McCracken (johnmccuk@gmail.com)
 
 26/02/17
 
