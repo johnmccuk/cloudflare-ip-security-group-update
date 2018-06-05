@@ -1,20 +1,16 @@
-# cloudflare-ip-security-group-update
-Lambda function to retrieve Cloudflare's IP address list and update the specified security group
+cloudflare-ip-security-group-update
+===================================
 
-John McCracken (johnmccuk@gmail.com)
+This Lambda function to retrieve Cloudflare's IP address list and
+update an AWS security group was originally written by John McCracken
+(johnmccuk@gmail.com).
 
-26/02/17
+Instructions
+------------
 
-https://github.com/johnmccuk/cloudflare-ip-security-group-update
+The Lambda uses the Python 2.7 runtime and requires the following
+enviroment variables:
 
-Updated 2018-06-05 and following by Ben Steinberg.
-
-###Instructions
-Python 2.7 code which should be placed in an AWS Lambda function and performs the following:
-* Calls Cloudflare API and returns the latest list of IP addresses
-* Retrieves the specified AWS Security Goup
-* Adds any IP addreses to the Security Group rules for ports 80 and 443
-
-The Lambda requires the following Lambda enviromental varibles:
-* SECURITY_GROUP_ID - the group ID for the specified security group
-* PORTS_LIST - comma-separated list of ports i.e. "80,443". If none is specified, port 80 is used
+* `SECURITY_GROUP_ID` - the group ID for the specified security group
+* `PORTS_LIST` - comma-separated list of ports e.g. `80,443`. If none
+  is specified, the default is port 80.
