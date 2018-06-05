@@ -123,7 +123,6 @@ def lambda_handler(event, context):
     # remove old addresses
     for port in ports:
         for rule in current_rules:
-            if rule['FromPort'] == port and rule['ToPort'] == port:
-                for ip_range in rule['Ipv6Ranges']:
-                    if ip_range['CidrIpv6'] not in ip_addresses['ipv6_cidrs']:
-                        delete_ipv6_rule(security_group, ip_range['CidrIpv6'], port)
+            for ip_range in rule['Ipv6Ranges']:
+                if ip_range['CidrIpv6'] not in ip_addresses['ipv6_cidrs'] and port == ip_range['FromPort']:
+                    delete_ipv6_rule(security_group, ip_range['CidrIpv6'], port)
