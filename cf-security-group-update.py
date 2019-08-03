@@ -93,7 +93,6 @@ def lambda_handler(event, context):
     if not ports:
         ports = [80]
         
-    ec2 = boto3.resource('ec2')
     security_groups = map(get_aws_security_group, os.environ['SECURITY_GROUP_IDS_LIST'].split(","))
     if not security_groups:
         security_groups = [get_aws_security_group(os.environ['SECURITY_GROUP_ID'])]
