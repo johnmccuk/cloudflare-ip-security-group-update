@@ -11,6 +11,7 @@ Instructions
 The Lambda uses the Python 2.7 runtime and requires the following
 enviroment variables:
 
-* `SECURITY_GROUP_ID` - the group ID for the specified security group
+* `SECURITY_GROUP_IDS_LIST` - a list of security group IDs to update
+* `SECURITY_GROUP_ID` - If list is undefined, a group ID for the specified security group
 * `PORTS_LIST` - comma-separated list of ports e.g. `80,443`. If none
   is specified, the default is port 80.
