@@ -36,7 +36,7 @@ def add_ipv4_rule(group, address, port):
                             CidrIp=address,
                             FromPort=port,
                             ToPort=port)
-    print("Added %s : %i  " % (address, port))
+    print("Added %s : %i to %s  " % (address, port, group.group_id))
 
 
 def delete_ipv4_rule(group, address, port):
@@ -45,7 +45,7 @@ def delete_ipv4_rule(group, address, port):
                          CidrIp=address,
                          FromPort=port,
                          ToPort=port)
-    print("Removed %s : %i  " % (address, port))
+    print("Removed %s : %i from %s  " % (address, port, group.group_id))
 
 
 def check_ipv6_rule_exists(rules, address, port):
@@ -69,7 +69,7 @@ def add_ipv6_rule(group, address, port):
             },
         ]
     }])
-    print("Added %s : %i  " % (address, port))
+    print("Added %s : %i to %s  " % (address, port, group.group_id))
 
 
 def delete_ipv6_rule(group, address, port):
@@ -84,7 +84,7 @@ def delete_ipv6_rule(group, address, port):
             },
         ]
     }])
-    print("Removed %s : %i  " % (address, port))
+    print("Removed %s : %i from %s  " % (address, port, group.group_id))
 
 
 def lambda_handler(event, context):
@@ -92,37 +92,42 @@ def lambda_handler(event, context):
     ports = map(int, os.environ['PORTS_LIST'].split(","))
     if not ports:
         ports = [80]
-
-    security_group = get_aws_security_group(os.environ['SECURITY_GROUP_ID'])
-    current_rules = security_group.ip_permissions
+        
+    ec2 = boto3.resource('ec2')
+    security_groups = map(get_aws_security_group, os.environ['SECURITY_GROUP_IDS_LIST'].split(","))
+    if not security_groups:
+        security_groups = [get_aws_security_group(os.environ['SECURITY_GROUP_ID'])]
     ip_addresses = get_cloudflare_ip_list()
-
-    ## IPv4
-    # add new addresses
-    for ipv4_cidr in ip_addresses['ipv4_cidrs']:
+    
+    ## Security Groups
+    for security_group in security_groups: 
+        current_rules = security_group.ip_permissions
+        ## IPv4
+        # add new addresses
+        for ipv4_cidr in ip_addresses['ipv4_cidrs']:
+            for port in ports:
+                if not check_ipv4_rule_exists(current_rules, ipv4_cidr, port):
+                    add_ipv4_rule(security_group, ipv4_cidr, port)
+    
+        # remove old addresses
         for port in ports:
-            if not check_ipv4_rule_exists(current_rules, ipv4_cidr, port):
-                add_ipv4_rule(security_group, ipv4_cidr, port)
-
-    # remove old addresses
-    for port in ports:
-        for rule in current_rules:
-            # is it necessary/correct to check both From and To?
-            if rule['FromPort'] == port and rule['ToPort'] == port:
-                for ip_range in rule['IpRanges']:
-                    if ip_range['CidrIp'] not in ip_addresses['ipv4_cidrs']:
-                        delete_ipv4_rule(security_group, ip_range['CidrIp'], port)
-
-    ## IPv6 -- because of boto3 syntax, this has to be separate
-    # add new addresses
-    for ipv6_cidr in ip_addresses['ipv6_cidrs']:
+            for rule in current_rules:
+                # is it necessary/correct to check both From and To?
+                if rule['FromPort'] == port and rule['ToPort'] == port:
+                    for ip_range in rule['IpRanges']:
+                        if ip_range['CidrIp'] not in ip_addresses['ipv4_cidrs']:
+                            delete_ipv4_rule(security_group, ip_range['CidrIp'], port)
+    
+        ## IPv6 -- because of boto3 syntax, this has to be separate
+        # add new addresses
+        for ipv6_cidr in ip_addresses['ipv6_cidrs']:
+            for port in ports:
+                if not check_ipv6_rule_exists(current_rules, ipv6_cidr, port):
+                    add_ipv6_rule(security_group, ipv6_cidr, port)
+    
+        # remove old addresses
         for port in ports:
-            if not check_ipv6_rule_exists(current_rules, ipv6_cidr, port):
-                add_ipv6_rule(security_group, ipv6_cidr, port)
-
-    # remove old addresses
-    for port in ports:
-        for rule in current_rules:
-            for ip_range in rule['Ipv6Ranges']:
-                if ip_range['CidrIpv6'] not in ip_addresses['ipv6_cidrs'] and port == ip_range['FromPort']:
-                    delete_ipv6_rule(security_group, ip_range['CidrIpv6'], port)
+            for rule in current_rules:
+                for ip_range in rule['Ipv6Ranges']:
+                    if ip_range['CidrIpv6'] not in ip_addresses['ipv6_cidrs']: 
+                        delete_ipv6_rule(security_group, ip_range['CidrIpv6'], port)
