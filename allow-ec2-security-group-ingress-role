@@ -1,0 +1,13 @@
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "ec2:AuthorizeSecurityGroupIngress",
+                "ec2:RevokeSecurityGroupIngress",
+                "ec2:DescribeSecurityGroups"
+            ],
+            "Resource": [
+                "*"
+            ]
+        }
+    ]
