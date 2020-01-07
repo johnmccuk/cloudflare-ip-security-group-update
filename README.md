@@ -53,5 +53,5 @@ Contributors
 
 * John McCracken ([@johnmccuk](https://www.github.com/johnmccuk))
 * Ryan Gibbons ([@rtgibbons](https://www.github.com/rtgibbons)) 
-* Ben Steinberg ([@bensteinberg](http://github.com/bensteinberg))
+* Ben Steinberg ([@bensteinberg](http://www.github.com/bensteinberg))
 * Endrigo Antonini ([@antonini](https://www.github.com/antonini))
