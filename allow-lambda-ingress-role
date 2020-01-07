@@ -4,7 +4,10 @@
             "Action": [
                 "ec2:AuthorizeSecurityGroupIngress",
                 "ec2:RevokeSecurityGroupIngress",
-                "ec2:DescribeSecurityGroups"
+                "ec2:DescribeSecurityGroups",
+                "s3:GetBucketPolicyStatus",
+                "s3:PutBucketPolicy",
+                "s3:GetBucketPolicy"
             ],
             "Resource": [
                 "*"
