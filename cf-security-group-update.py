@@ -107,7 +107,17 @@ def update_s3_policies_policies(ip_addresses):
     ipv4 = ip_addresses['ipv4_cidrs']
     ipv6 = ip_addresses['ipv6_cidrs']
 
-    cloudflare_ips = ipv4 + ipv6
+    try:
+        update_ipv6 = os.environ['UPDATE_IPV6']
+    except KeyError:
+        update_ipv6 = '1'
+
+    update_ipv6 = bool(int(update_ipv6))
+
+    if update_ipv6:
+        cloudflare_ips = ipv4 + ipv6
+    else:
+        cloudflare_ips = ipv4
 
     if not "S3_CLOUDFLARE_SID" in os.environ:
         print("Not configured 'S3_CLOUDFLARE_SID' variable, so will not check S3")
@@ -171,6 +181,13 @@ def update_security_group_policies(ip_addresses):
         print('At least one TCP port and one security group ID are required.')
         return
 
+    try:
+        update_ipv6 = os.environ['UPDATE_IPV6']
+    except KeyError:
+        update_ipv6 = '1'
+
+    update_ipv6 = bool(int(update_ipv6))
+
     ## Security Groups
     for security_group in security_groups: 
         current_rules = security_group.ip_permissions
@@ -191,18 +208,19 @@ def update_security_group_policies(ip_addresses):
                             delete_ipv4_rule(security_group, ip_range['CidrIp'], port)
     
         ## IPv6 -- because of boto3 syntax, this has to be separate
-        # add new addresses
-        for ipv6_cidr in ip_addresses['ipv6_cidrs']:
+        if update_ipv6:
+            # add new addresses
+            for ipv6_cidr in ip_addresses['ipv6_cidrs']:
+                for port in ports:
+                    if not check_ipv6_rule_exists(current_rules, ipv6_cidr, port):
+                        add_ipv6_rule(security_group, ipv6_cidr, port)
+
+            # remove old addresses
             for port in ports:
-                if not check_ipv6_rule_exists(current_rules, ipv6_cidr, port):
-                    add_ipv6_rule(security_group, ipv6_cidr, port)
-    
-        # remove old addresses
-        for port in ports:
-            for rule in current_rules:
-                for ip_range in rule['Ipv6Ranges']:
-                    if ip_range['CidrIpv6'] not in ip_addresses['ipv6_cidrs']: 
-                        delete_ipv6_rule(security_group, ip_range['CidrIpv6'], port)
+                for rule in current_rules:
+                    for ip_range in rule['Ipv6Ranges']:
+                        if ip_range['CidrIpv6'] not in ip_addresses['ipv6_cidrs']:
+                            delete_ipv6_rule(security_group, ip_range['CidrIpv6'], port)
 
 
 def lambda_handler(event, context):
