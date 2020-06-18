@@ -1,13 +1,14 @@
 import os
 import boto3
 import json
-from botocore.vendored import requests
+import urllib3
 
 
 def get_cloudflare_ip_list():
     """ Call the CloudFlare API and return a list of IPs """
-    response = requests.get('https://api.cloudflare.com/client/v4/ips')
-    temp = response.json()
+    http = urllib3.PoolManager()
+    response = http.request('GET', 'https://api.cloudflare.com/client/v4/ips')
+    temp = json.loads(response.data.decode('utf-8'))
     if 'result' in temp:
         return temp['result']
     raise Exception("Cloudflare response error")
