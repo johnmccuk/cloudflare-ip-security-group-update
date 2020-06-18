@@ -46,7 +46,8 @@ def add_ipv4_rule(group, address, port):
     group.authorize_ingress(IpProtocol="tcp",
                             CidrIp=address,
                             FromPort=port,
-                            ToPort=port)
+                            ToPort=port,
+                            GroupName=group.group_name)
     print("Added %s : %i to %s  " % (address, port, group.group_id))
 
 
@@ -70,7 +71,7 @@ def check_ipv6_rule_exists(rules, address, port):
 
 def add_ipv6_rule(group, address, port):
     """ Add the IP address/port to the security group """
-    group.authorize_ingress(IpPermissions=[{
+    group.authorize_ingress(GroupName=group.group_name, IpPermissions=[{
         'IpProtocol': "tcp",
         'FromPort': port,
         'ToPort': port,
