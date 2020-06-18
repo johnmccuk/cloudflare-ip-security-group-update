@@ -149,18 +149,28 @@ def update_security_group_policies(ip_addresses):
     """ Update Information of Security Groups """
     print("Checking policies of Security Groups")
 
-    if not "SECURITY_GROUP_IDS_LIST" in os.environ and not "SECURITY_GROUP_ID" in os.environ:
-        print("Missing S3 basic configuration 'SECURITY_GROUP_IDS_LIST' or 'SECURITY_GROUP_ID'. Will not check Security Policy.") 
-        return
-   
-    ports = map(int, os.environ['PORTS_LIST'].split(","))
-    if not ports:
-        ports = [80]
+    try:
+        ports = os.environ['PORTS_LIST']
+    except KeyError:
+        ports = '80,443'
 
-    security_groups = map(get_aws_security_group, os.environ['SECURITY_GROUP_IDS_LIST'].split(","))
-    if not security_groups:
-        security_groups = [get_aws_security_group(os.environ['SECURITY_GROUP_ID'])]
+    ports = map(int, ports.split(','))
+
+    try:
+        security_groups = os.environ['SECURITY_GROUP_IDS_LIST']
+    except KeyError:
+        try:
+            security_groups = os.environ['SECURITY_GROUP_ID']
+        except KeyError:
+            print('Missing environment variables SECURITY_GROUP_IDS_LIST and SECURITY_GROUP_ID. At least one is required.')
+            return
     
+    security_groups = map(get_aws_security_group, security_groups.split(','))
+
+    if (not ports) or (not security_groups):
+        print('At least one TCP port and one security group ID are required.')
+        return
+
     ## Security Groups
     for security_group in security_groups: 
         current_rules = security_group.ip_permissions
