@@ -24,6 +24,7 @@ enviroment variables:
 * `S3_CLOUDFLARE_SID` - Sid that stores all the CloudFlare configurataion. That Sid is stored on the Stament policy.
 * `S3_BUCKET_IDS_LIST` - a list of S3 buckets IDs to update
 * `S3_BUCKET_ID` - if list is undefined, a ID for the specified S3 bucket.
+* `UPDATE_IPV6` - if set to 0, will not add IPv6 ranges.
 
 You need to allow the Lambda to execute those actions (example on the file `allow-lambda-ingress-role`:
 
