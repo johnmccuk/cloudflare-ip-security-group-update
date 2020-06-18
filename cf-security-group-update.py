@@ -202,7 +202,7 @@ def update_security_group_policies(ip_addresses):
         for port in ports:
             for rule in current_rules:
                 # is it necessary/correct to check both From and To?
-                if rule['FromPort'] == port and rule['ToPort'] == port:
+                if rule['IpProtocol'] == 'tcp' and rule['FromPort'] == port and rule['ToPort'] == port:
                     for ip_range in rule['IpRanges']:
                         if ip_range['CidrIp'] not in ip_addresses['ipv4_cidrs']:
                             delete_ipv4_rule(security_group, ip_range['CidrIp'], port)
@@ -218,9 +218,10 @@ def update_security_group_policies(ip_addresses):
             # remove old addresses
             for port in ports:
                 for rule in current_rules:
-                    for ip_range in rule['Ipv6Ranges']:
-                        if ip_range['CidrIpv6'] not in ip_addresses['ipv6_cidrs']:
-                            delete_ipv6_rule(security_group, ip_range['CidrIpv6'], port)
+                    if rule['IpProtocol'] == 'tcp' and rule['FromPort'] == port and rule['ToPort'] == port:
+                        for ip_range in rule['Ipv6Ranges']:
+                            if ip_range['CidrIpv6'] not in ip_addresses['ipv6_cidrs']:
+                                delete_ipv6_rule(security_group, ip_range['CidrIpv6'], port)
 
 
 def lambda_handler(event, context):
