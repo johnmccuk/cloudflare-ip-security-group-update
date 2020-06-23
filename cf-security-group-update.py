@@ -160,13 +160,6 @@ def update_security_group_policies(ip_addresses):
     print("Checking policies of Security Groups")
 
     try:
-        ports = os.environ['PORTS_LIST']
-    except KeyError:
-        ports = '80,443'
-
-    ports = map(int, ports.split(','))
-
-    try:
         security_groups = os.environ['SECURITY_GROUP_IDS_LIST']
     except KeyError:
         try:
@@ -174,8 +167,15 @@ def update_security_group_policies(ip_addresses):
         except KeyError:
             print('Missing environment variables SECURITY_GROUP_IDS_LIST and SECURITY_GROUP_ID. Will not update security groups.')
             return
-    
+
     security_groups = map(get_aws_security_group, security_groups.split(','))
+
+    try:
+        ports = os.environ['PORTS_LIST']
+    except KeyError:
+        ports = '80,443'
+
+    ports = map(int, ports.split(','))
 
     if (not ports) or (not security_groups):
         raise Exception('At least one TCP port and one security group ID are required.')
