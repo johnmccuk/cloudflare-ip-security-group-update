@@ -19,11 +19,11 @@ enviroment variables:
 
 * `SECURITY_GROUP_IDS_LIST` - a list of security group IDs to update
 * `SECURITY_GROUP_ID` - If list is undefined, a group ID for the specified security group
-* `PORTS_LIST` - comma-separated list of ports e.g. `80,443`. If none
-  is specified, the default is port 80.
+* `PORTS_LIST` - comma-separated list of ports e.g. `80,443`.
 * `S3_CLOUDFLARE_SID` - Sid that stores all the CloudFlare configurataion. That Sid is stored on the Stament policy.
 * `S3_BUCKET_IDS_LIST` - a list of S3 buckets IDs to update
 * `S3_BUCKET_ID` - if list is undefined, a ID for the specified S3 bucket.
+* `UPDATE_IPV6` - if set to 0, will not update IPv6 ranges in security groups nor S3 bucket policies.
 
 You need to allow the Lambda to execute those actions (example on the file `allow-lambda-ingress-role`:
 

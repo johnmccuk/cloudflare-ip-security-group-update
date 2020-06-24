@@ -1,13 +1,14 @@
 import os
 import boto3
 import json
-from botocore.vendored import requests
+import urllib3
 
 
 def get_cloudflare_ip_list():
     """ Call the CloudFlare API and return a list of IPs """
-    response = requests.get('https://api.cloudflare.com/client/v4/ips')
-    temp = response.json()
+    http = urllib3.PoolManager()
+    response = http.request('GET', 'https://api.cloudflare.com/client/v4/ips')
+    temp = json.loads(response.data.decode('utf-8'))
     if 'result' in temp:
         return temp['result']
     raise Exception("Cloudflare response error")
@@ -45,8 +46,9 @@ def add_ipv4_rule(group, address, port):
     group.authorize_ingress(IpProtocol="tcp",
                             CidrIp=address,
                             FromPort=port,
-                            ToPort=port)
-    print("Added %s : %i to %s  " % (address, port, group.group_id))
+                            ToPort=port,
+                            GroupName=group.group_name)
+    print("Added %s : %i to %s (%s) " % (address, port, group.group_id, group.group_name))
 
 
 def delete_ipv4_rule(group, address, port):
@@ -55,7 +57,7 @@ def delete_ipv4_rule(group, address, port):
                          CidrIp=address,
                          FromPort=port,
                          ToPort=port)
-    print("Removed %s : %i from %s  " % (address, port, group.group_id))
+    print("Removed %s : %i from %s (%s) " % (address, port, group.group_id, group.group_name))
 
 
 def check_ipv6_rule_exists(rules, address, port):
@@ -69,7 +71,7 @@ def check_ipv6_rule_exists(rules, address, port):
 
 def add_ipv6_rule(group, address, port):
     """ Add the IP address/port to the security group """
-    group.authorize_ingress(IpPermissions=[{
+    group.authorize_ingress(GroupName=group.group_name, IpPermissions=[{
         'IpProtocol': "tcp",
         'FromPort': port,
         'ToPort': port,
@@ -79,7 +81,7 @@ def add_ipv6_rule(group, address, port):
             },
         ]
     }])
-    print("Added %s : %i to %s  " % (address, port, group.group_id))
+    print("Added %s : %i to %s (%s) " % (address, port, group.group_id, group.group_name))
 
 
 def delete_ipv6_rule(group, address, port):
@@ -94,7 +96,13 @@ def delete_ipv6_rule(group, address, port):
             },
         ]
     }])
-    print("Removed %s : %i from %s  " % (address, port, group.group_id))
+    print("Removed %s : %i from %s (%s) " % (address, port, group.group_id, group.group_name))
+
+def get_update_ipv6():
+    try:
+        return bool(int(os.environ['UPDATE_IPV6']))
+    except (KeyError, ValueError):
+        return True
 
 def update_s3_policies_policies(ip_addresses):
     """ Update S3 policies """
@@ -102,17 +110,21 @@ def update_s3_policies_policies(ip_addresses):
 
     s3 = boto3.client('s3')
 
-    ipv4 = ip_addresses['ipv4_cidrs']
-    ipv6 = ip_addresses['ipv6_cidrs']
-
-    cloudflare_ips = ipv4 + ipv6
-
     if not "S3_CLOUDFLARE_SID" in os.environ:
         print("Not configured 'S3_CLOUDFLARE_SID' variable, so will not check S3")
         return
 
     if not "S3_BUCKET_IDS_LIST" in os.environ and not "S3_BUCKET_ID" in os.environ:
         raise Exception("Missing S3 basic configuration 'S3_BUCKET_IDS_LIST' or 'S3_BUCKET_ID'.") 
+
+    ipv4 = ip_addresses['ipv4_cidrs']
+    ipv6 = ip_addresses['ipv6_cidrs']
+
+    if get_update_ipv6():
+        cloudflare_ips = ipv4 + ipv6
+    else:
+        print('Not updating IPv6 ranges in S3 policies.')
+        cloudflare_ips = ipv4
 
     sid = os.environ['S3_CLOUDFLARE_SID']
     s3_policy_tuple = map(get_aws_s3_bucket_policy, os.environ['S3_BUCKET_IDS_LIST'].split(","))
@@ -147,18 +159,27 @@ def update_security_group_policies(ip_addresses):
     """ Update Information of Security Groups """
     print("Checking policies of Security Groups")
 
-    if not "SECURITY_GROUP_IDS_LIST" in os.environ and not "SECURITY_GROUP_ID" in os.environ:
-        print("Missing S3 basic configuration 'SECURITY_GROUP_IDS_LIST' or 'SECURITY_GROUP_ID'. Will not check Security Policy.") 
-        return
-   
-    ports = map(int, os.environ['PORTS_LIST'].split(","))
-    if not ports:
-        ports = [80]
+    try:
+        security_groups = os.environ['SECURITY_GROUP_IDS_LIST']
+    except KeyError:
+        try:
+            security_groups = os.environ['SECURITY_GROUP_ID']
+        except KeyError:
+            print('Missing environment variables SECURITY_GROUP_IDS_LIST and SECURITY_GROUP_ID. Will not update security groups.')
+            return
 
-    security_groups = map(get_aws_security_group, os.environ['SECURITY_GROUP_IDS_LIST'].split(","))
-    if not security_groups:
-        security_groups = [get_aws_security_group(os.environ['SECURITY_GROUP_ID'])]
-    
+    security_groups = map(get_aws_security_group, security_groups.split(','))
+
+    try:
+        ports = os.environ['PORTS_LIST']
+    except KeyError:
+        ports = '80,443'
+
+    ports = map(int, ports.split(','))
+
+    if (not ports) or (not security_groups):
+        raise Exception('At least one TCP port and one security group ID are required.')
+
     ## Security Groups
     for security_group in security_groups: 
         current_rules = security_group.ip_permissions
@@ -173,25 +194,28 @@ def update_security_group_policies(ip_addresses):
         for port in ports:
             for rule in current_rules:
                 # is it necessary/correct to check both From and To?
-                if rule['FromPort'] == port and rule['ToPort'] == port:
+                if rule['IpProtocol'] == 'tcp' and rule['FromPort'] == port and rule['ToPort'] == port:
                     for ip_range in rule['IpRanges']:
                         if ip_range['CidrIp'] not in ip_addresses['ipv4_cidrs']:
                             delete_ipv4_rule(security_group, ip_range['CidrIp'], port)
     
         ## IPv6 -- because of boto3 syntax, this has to be separate
-        # add new addresses
-        for ipv6_cidr in ip_addresses['ipv6_cidrs']:
-            for port in ports:
-                if not check_ipv6_rule_exists(current_rules, ipv6_cidr, port):
-                    add_ipv6_rule(security_group, ipv6_cidr, port)
-    
-        # remove old addresses
-        for port in ports:
-            for rule in current_rules:
-                for ip_range in rule['Ipv6Ranges']:
-                    if ip_range['CidrIpv6'] not in ip_addresses['ipv6_cidrs']: 
-                        delete_ipv6_rule(security_group, ip_range['CidrIpv6'], port)
+        if get_update_ipv6():
+            # add new addresses
+            for ipv6_cidr in ip_addresses['ipv6_cidrs']:
+                for port in ports:
+                    if not check_ipv6_rule_exists(current_rules, ipv6_cidr, port):
+                        add_ipv6_rule(security_group, ipv6_cidr, port)
 
+            # remove old addresses
+            for port in ports:
+                for rule in current_rules:
+                    if rule['IpProtocol'] == 'tcp' and rule['FromPort'] == port and rule['ToPort'] == port:
+                        for ip_range in rule['Ipv6Ranges']:
+                            if ip_range['CidrIpv6'] not in ip_addresses['ipv6_cidrs']:
+                                delete_ipv6_rule(security_group, ip_range['CidrIpv6'], port)
+        else:
+            print('Not updating IPv6 ranges in security groups.')
 
 def lambda_handler(event, context):
     """ AWS Lambda main function """
