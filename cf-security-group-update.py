@@ -43,11 +43,21 @@ def check_ipv4_rule_exists(rules, address, port):
 
 def add_ipv4_rule(group, address, port):
     """ Add the IP address/port to the security group """
-    group.authorize_ingress(IpProtocol="tcp",
-                            CidrIp=address,
-                            FromPort=port,
-                            ToPort=port,
-                            GroupName=group.group_name)
+    group.authorize_ingress(
+        IpPermissions=[
+            {
+                'FromPort': port,
+                'IpProtocol': 'tcp',
+                'IpRanges': [
+                    {
+                        'CidrIp': address,
+                        'Description': 'from https://api.cloudflare.com/client/v4/ips'
+                    },
+                ],
+                'ToPort': port
+            },
+        ]
+    )
     print("Added %s : %i to %s (%s) " % (address, port, group.group_id, group.group_name))
 
 
