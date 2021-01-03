@@ -193,15 +193,14 @@ def update_security_group_policies(ip_addresses):
     ## Security Groups
     for security_group in security_groups: 
         current_rules = security_group.ip_permissions
-        ## IPv4
-        # add new addresses
-        for ipv4_cidr in ip_addresses['ipv4_cidrs']:
-            for port in ports:
+        for port in ports:
+            ## IPv4
+            # add new addresses
+            for ipv4_cidr in ip_addresses['ipv4_cidrs']:
                 if not check_ipv4_rule_exists(current_rules, ipv4_cidr, port):
                     add_ipv4_rule(security_group, ipv4_cidr, port)
     
-        # remove old addresses
-        for port in ports:
+            # remove old addresses
             for rule in current_rules:
                 # is it necessary/correct to check both From and To?
                 if rule['IpProtocol'] == 'tcp' and rule['FromPort'] == port and rule['ToPort'] == port:
